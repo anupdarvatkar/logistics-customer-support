@@ -1,0 +1,2 @@
+#Check the right way to get the dependencies installed
+pip install google-adk
