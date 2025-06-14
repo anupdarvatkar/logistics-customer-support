@@ -15,10 +15,10 @@ from google.genai import types
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
 
-from .util.util import load_instruction_from_file
-#from sub_agents.tracking_agent import agent
-from .sub_agents.tracking_agent import tracking_agent
-from .sub_agents.booking_agent import booking_agent
+from util.util import load_instruction_from_file
+from sub_agents.tracking_agent import agent
+from sub_agents.tracking_agent import tracking_agent
+from sub_agents.booking_agent import booking_agent
 
 # Instantiate constants
 APP_NAME = "logistics-customer-support"

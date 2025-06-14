@@ -70,7 +70,7 @@ BOOKING_AGENT_INSTRUCTIONS="""
 
         Do not proceed untill all the information is correct and complete
         Once all the information is gathered and validated, you must always ask for explicit confirmation from the user for every single booking attempt.
-        This confirmation is a mandatory step and must be performed every time, regardless of Previous interactions.  
+        This confirmation is a mandatory step and must be performed every time, regardless of Previous interactions. Do NOT skip this step. 
 
         Tools:
         - booking_tool - Use this tool to create a new booking in the system

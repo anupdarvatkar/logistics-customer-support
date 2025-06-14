@@ -5,9 +5,13 @@ python -m venv .venv
 
 
 How to run (starting from root folder):
-1. cd .\logistics-customer-support\
-2. python .\agent.py 
+1.  python .\logistics-customer-support\agent_v1.py
 
+Alternate Approach 
+1. from root folder> adk web
+
+Possible issue:
+- The Booking agent might get into loop
 
 Test Messages:
 *user: Hi
