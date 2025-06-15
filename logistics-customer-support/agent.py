@@ -4,6 +4,7 @@
 import uuid
 import asyncio
 from dotenv import load_dotenv
+import uvicorn
 load_dotenv()
 
 #Google Imports
@@ -14,6 +15,8 @@ from google.adk.tools import google_search
 from google.genai import types
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
+
+from fastapi import FastAPI, Request
 
 from .util.util import load_instruction_from_file
 #from sub_agents.tracking_agent import agent
@@ -42,10 +45,32 @@ try:
         #sub_agents=[agent]
     )
 except Exception as e:
-    print(f"Failed to create Logistics Coordinator Agent. Error: {e}")
-    
+    print(f"Failed to create Logistics Coordinator Agent. Error: {e}")    
 
 root_agent = logistics_coordinator_agent
+
+# --- FastAPI setup ---
+app = FastAPI()
+
+@app.post("/")
+async def chat(request: Request):
+    request_json = await request.json()
+    query = request_json.get("query")
+    user_id = request_json.get("user_id", "default_user")
+    session_id = request_json.get("session_id")
+
+    if not query:
+        return {"error": "Missing query"}, 400
+
+    response, new_session_id = await call_agent(query, user_id, session_id)
+    return {"response": response, "session_id": new_session_id}
+
+# --- Uvicorn server setup (for local testing) ---
+if __name__ == "__main__":
+    print("Starting FastAPI server for Logistics Agent...")
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # Or your preferred port
+
+
 
 # Session
 session_service = InMemorySessionService()
@@ -110,4 +135,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main())  # Comment out the original CLI main
+    pass # The server is started above
