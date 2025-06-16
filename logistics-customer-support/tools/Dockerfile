@@ -13,6 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the content of the local directory to the working directory
 COPY . .
 
+# Set environment variables
+ENV OCR_AGENT_URL="http://ocr-agent-service:8000"
+ENV GCS_BUCKET_NAME="logistics_customer_support_bucket"
+
+
 EXPOSE 8080
 
 CMD ["python", "mcp_server.py"]
