@@ -1,7 +1,7 @@
 import os
 from google.adk import Agent
 
-MODEL = "gemini-2.5-pro-preview-05-06"
+MODEL = "gemini-2.0-flash"
 
 PAN_EXTRACTION_INSTRUCTION = """
 You are an expert information extraction agent. Your task is to extract details from Indian PAN card text with maximum accuracy and completeness.
@@ -32,28 +32,8 @@ Example output:
 }
 """
 
-def extract_pan_json(text: str) -> dict:
-    """
-    Passes the input text to Gemini LLM and returns the extracted PAN card details as a JSON object.
-    """
-    agent = Agent(
+
+ocr_extract_agent = Agent(
         model=MODEL,
         name="pan_extractor_agent",
-        instruction=PAN_EXTRACTION_INSTRUCTION,
-    )
-    response = agent.run(text)  # Use invoke instead of run
-    return response
-
-# Example usage:
-if __name__ == "__main__":
-    sample_text = """
-    INCOME TAX DEPARTMENT
-    GOVERNMENT OF INDIA
-    Name: RAVI KUMAR
-    Father's Name: SURESH KUMAR
-    Date of Birth: 12/05/1985
-    PAN: ABCDE1234F
-    Gender: MALE
-    """
-    result = extract_pan_json(sample_text)
-    print(result)
+        instruction=PAN_EXTRACTION_INSTRUCTION,)

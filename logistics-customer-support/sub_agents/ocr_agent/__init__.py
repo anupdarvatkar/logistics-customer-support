@@ -1,1 +1,1 @@
-from .agent import root_agent as agent
+from .agent import ocr_extract_agent

@@ -1,7 +1,14 @@
 import os
 import uvicorn
-from fastapi import FastAPI, File, UploadFile
+import uuid
+import posixpath
+import re
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
+from google.cloud import vision, storage
+
+# Correct import for ocr_extract_agent
+from sub_agents.ocr_agent.agent import ocr_extract_agent
 
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "logistics_customer_support_bucket")
 IMAGE_TEMP_FOLDER = "image_temp"
@@ -24,7 +31,6 @@ def upload_to_gcs_from_bytes(file_bytes: bytes, filename: str = None, bucket_nam
 
 def upload_id_image(file_bytes: bytes, filename: str = None) -> str:
     return upload_to_gcs_from_bytes(file_bytes, filename)
-
 
 def extract_id_details_from_gcs(gcs_uri: str) -> dict:
     image_bytes = download_gcs_blob_as_bytes(gcs_uri)
@@ -86,16 +92,53 @@ def extract_id_details_from_bytes(image_bytes: bytes) -> dict:
         return extracted_data
     except Exception as e:
         return {"error": str(e)}
+    
+
+def tool_upload_file(file_bytes: bytes, filename: str = None):
+    gcs_uri = upload_to_gcs_from_bytes(file_bytes, filename)
+    return {"gcs_uri": gcs_uri}
 
 
+def tool_upload_and_extract(file_bytes: bytes, filename: str = None):
+    gcs_uri = upload_id_image(file_bytes, filename)
+    ocr_result = extract_id_details_from_gcs(gcs_uri)
+    return {"gcs_uri": gcs_uri, "ocr_result": ocr_result}
+
+def tool_extract_pan(text: str):
+    pan_json = extract_pan_json(text)
+    return {"extracted_pan": pan_json}
 
 
 @app.post("/upload_and_extract/")
 async def upload_and_extract(file: UploadFile = File(...)):
     file_bytes = await file.read()
-    gcs_uri = upload_id_image(file_bytes, file.filename)
-    ocr_result = extract_id_details_from_gcs(gcs_uri)
-    return {"gcs_uri": gcs_uri, "ocr_result": ocr_result}
+    return tool_upload_and_extract(file_bytes, file.filename)
+
+
+@app.post("/upload/")
+async def upload_file(file: UploadFile = File(...)):
+    file_bytes = await file.read()
+    return tool_upload_file(file_bytes, file.filename)
+
+
+@app.post("/extract/")
+async def extract_pan(file: UploadFile = File(None), text: str = Form(None)):
+    if file:
+        file_bytes = await file.read()
+        ocr_result = extract_id_details_from_bytes(file_bytes)
+        text_to_extract = ocr_result.get("full_text", "")
+    elif text:
+        text_to_extract = text
+    else:
+        return {"error": "No file or text provided."}
+    return tool_extract_pan(text_to_extract)
+
+def extract_pan_json(text: str) -> dict:
+    """
+    Passes the input text to Gemini LLM via ocr_extract_agent and returns the extracted PAN card details as a JSON object.
+    """
+    response = ocr_extract_agent.invoke(text)
+    return response
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8081))
