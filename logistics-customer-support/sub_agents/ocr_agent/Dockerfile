@@ -13,6 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the content of the local directory to the working directory
 COPY . .
 
-EXPOSE 8081
+EXPOSE 8080
 
-CMD ["python", "agent.py"]
+CMD ["python", "-m", "a2a_server"]

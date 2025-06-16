@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Set environment variables
-ENV OCR_AGENT_URL="http://ocr-agent-service:8000"
+ENV OCR_AGENT_URL="https://ocr-agent-service-203057862897.us-central1.run.app:8081"
 ENV GCS_BUCKET_NAME="logistics_customer_support_bucket"
 
 
