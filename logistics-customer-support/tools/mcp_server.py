@@ -4,6 +4,12 @@ import asyncio
 import json
 import uvicorn
 import os
+import sys
+
+# Add the project root to the Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(project_root)
+
 from dotenv import load_dotenv
 
 from mcp import types as mcp_types 
@@ -13,7 +19,7 @@ from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
 
-from tools.ocr_api import tool_upload_and_extract, tool_upload_file, tool_extract_pan
+from ocr_api import tool_upload_and_extract, tool_upload_file, tool_extract_pan
 
 from google.adk.tools.function_tool import FunctionTool
 
