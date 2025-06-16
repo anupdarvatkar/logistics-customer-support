@@ -95,18 +95,122 @@ def extract_id_details_from_bytes(image_bytes: bytes) -> dict:
     
 
 def tool_upload_file(file_bytes: bytes, filename: str = None):
-    gcs_uri = upload_to_gcs_from_bytes(file_bytes, filename)
-    return {"gcs_uri": gcs_uri}
+    """
+    Uploads an image file to Google Cloud Storage.
+    
+    Args:
+        file_bytes (bytes): The binary content of the file to upload.
+        filename (str, optional): The name of the file. If not provided, a random name will be generated.
+        
+    Returns:
+        dict: A dictionary containing:
+            {
+                "gcs_uri": str  # The Google Cloud Storage URI where the file was uploaded
+            }
+            
+            If an error occurs, returns: {"error": error_message}
+    """
+    if not file_bytes or not isinstance(file_bytes, bytes):
+        return {"error": "No file data provided or invalid file format."}
+    
+    try:
+        # Upload the file to GCS
+        gcs_uri = upload_to_gcs_from_bytes(file_bytes, filename)
+        if not gcs_uri:
+            return {"error": "Failed to upload file to Google Cloud Storage."}
+            
+        print(f"Successfully uploaded file to: {gcs_uri}")
+        return {"gcs_uri": gcs_uri}
+        
+    except Exception as e:
+        error_message = f"Error uploading file: {str(e)}"
+        print(error_message)
+        return {"error": error_message}
 
 
 def tool_upload_and_extract(file_bytes: bytes, filename: str = None):
-    gcs_uri = upload_id_image(file_bytes, filename)
-    ocr_result = extract_id_details_from_gcs(gcs_uri)
-    return {"gcs_uri": gcs_uri, "ocr_result": ocr_result}
+    """
+    Uploads an image file to Google Cloud Storage and extracts text details using OCR.
+    
+    Args:
+        file_bytes (bytes): The binary content of the image file to upload.
+        filename (str, optional): The name of the file. If not provided, a random name will be generated.
+        
+    Returns:
+        dict: A dictionary containing:
+            {
+                "gcs_uri": str,  # The Google Cloud Storage URI where the file was uploaded
+                "ocr_result": {
+                    "full_text": str,  # The full text extracted from the image
+                    # Additional extracted fields if available
+                }
+            }
+            
+            If an error occurs, returns: {"error": error_message}
+    """
+    if not file_bytes or not isinstance(file_bytes, bytes):
+        return {"error": "No file data provided or invalid file format."}
+    
+    try:
+        # Upload the file to GCS
+        gcs_uri = upload_to_gcs_from_bytes(file_bytes, filename)
+        if not gcs_uri:
+            return {"error": "Failed to upload file to Google Cloud Storage."}
+            
+        print(f"Successfully uploaded file to: {gcs_uri}")
+        
+        # Extract text using OCR
+        ocr_result = extract_id_details_from_gcs(gcs_uri)
+        if not ocr_result or "error" in ocr_result:
+            error_msg = ocr_result.get("error", "Unknown error during OCR processing.")
+            return {"error": error_msg, "gcs_uri": gcs_uri}
+            
+        print(f"Successfully extracted text from image at {gcs_uri}")
+        return {"gcs_uri": gcs_uri, "ocr_result": ocr_result}
+        
+    except Exception as e:
+        error_message = f"Error in upload and extract process: {str(e)}"
+        print(error_message)
 
 def tool_extract_pan(text: str):
-    pan_json = extract_pan_json(text)
-    return {"extracted_pan": pan_json}
+    """
+    Extracts PAN card details from the provided text using the OCR extract agent.
+    
+    Args:
+        text (str): The text containing PAN card details, typically obtained from OCR.
+        
+    Returns:
+        dict: A dictionary containing the extracted PAN details with the following structure:
+            {
+                "extracted_pan": {
+                    "pan_number": str,
+                    "name": str,
+                    "father_name": str,
+                    "dob": str,
+                    "gender": str
+                }
+            }
+            
+            If an error occurs, returns: {"error": error_message}
+    """
+    if not text or not isinstance(text, str):
+        return {"error": "No text provided or invalid text format."}
+    
+    try:
+        # Call the extraction function
+        pan_json = extract_pan_json(text)
+        
+        # Validate that we got a proper response
+        if not pan_json:
+            return {"error": "No PAN details could be extracted from the provided text."}
+            
+        print(f"Successfully extracted PAN details: {pan_json}")
+        return {"extracted_pan": pan_json}
+        
+    except Exception as e:
+        error_message = f"Error extracting PAN details: {str(e)}"
+        print(error_message)
+        return {"error": error_message}
 
 
 @app.post("/upload_and_extract/")
@@ -136,9 +240,44 @@ async def extract_pan(file: UploadFile = File(None), text: str = Form(None)):
 def extract_pan_json(text: str) -> dict:
     """
     Passes the input text to Gemini LLM via ocr_extract_agent and returns the extracted PAN card details as a JSON object.
+    
+    Args:
+        text (str): The text containing PAN card information to be processed.
+        
+    Returns:
+        dict: A dictionary containing the structured PAN card details with the following structure:
+            {
+                "pan_number": str,  # The 10-character alphanumeric Permanent Account Number
+                "name": str,        # The full name as printed on the PAN card
+                "father_name": str, # The full father's name as printed on the PAN card
+                "dob": str,         # Date of birth in DD/MM/YYYY format
+                "gender": str       # Gender as printed (MALE, FEMALE, or OTHER)
+            }
+            
+            If a field is missing in the text, its value will be null.
+            If an error occurs, returns: {"error": error_message}
     """
-    response = ocr_extract_agent.invoke(text)
-    return response
+    if not text or not isinstance(text, str):
+        return {"error": "No text provided or invalid text format."}
+    
+    if len(text.strip()) < 10:
+        return {"error": "Text is too short to contain valid PAN card details."}
+    
+    try:
+        # Call the ocr_extract_agent to process the text
+        response = ocr_extract_agent.invoke(text)
+        
+        # Validate the response
+        if not response:
+            return {"error": "No data returned from extraction agent."}
+            
+        print(f"Successfully extracted PAN card details from text.")
+        return response
+        
+    except Exception as e:
+        error_message = f"Error extracting PAN card details: {str(e)}"
+        print(error_message)
+        return {"error": error_message}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8081))
