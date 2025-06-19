@@ -13,5 +13,5 @@ google-adk[eval]==0.4.0
 build==1.2.2.post1
 google-genai==1.14.0
 google-cloud-vision
-./sub_agents/a2a_common-0.1.0-py3-none-any.whl
+../a2a_common-0.1.0-py3-none-any.whl
 deprecated

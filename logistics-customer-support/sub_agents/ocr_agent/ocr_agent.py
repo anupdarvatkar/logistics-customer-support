@@ -43,21 +43,12 @@ async def get_tools_async():
     """
     Asynchronously creates an MCP Toolset connected to the MCP server.
     """
-    exit_stack = AsyncExitStack()
-    
-    # Connect to the MCP server
-    log.info(f"Connecting to MCP server at {MCP_SERVER_URL}")
-    mcp_toolset = MCPToolset(
-        sse_server_params=SseServerParams(
-            url=MCP_SERVER_URL,
-        )
-    )
-    
-    # Add the MCP toolset to the exit stack for proper cleanup
-    mcp_connection = await exit_stack.enter_async_context(mcp_toolset)
-    
-    # Get the tools from the MCP server
-    tools = [mcp_toolset]
+
+
+    print("Attempting to connect to MCP Filesystem server...")
+    tools, exit_stack = await MCPToolset.from_server(
+      connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
+  )
     
     return tools, exit_stack
 
@@ -150,8 +141,3 @@ except RuntimeError as e:
 except Exception as e:
     log.error(f"Unexpected error during initialization: {e}")
 
-# Run the FastAPI server when this script is executed directly
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    log.info(f"Starting FastAPI server on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)

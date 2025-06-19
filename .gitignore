@@ -69,3 +69,5 @@ docker-compose.override.yml
 *.tmp
 *.bak
 *~
+logistics-customer-support/sub_agents/ocr_agent/__pycache__/__init__.cpython-313.pyc
+logistics-customer-support/sub_agents/ocr_agent/__pycache__/agent.cpython-313.pyc
