@@ -20,8 +20,7 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from common.task_manager import AgentWithTaskManager
 
-# Apply nest_asyncio to allow nested event loops
-nest_asyncio.apply()
+
 
 # Load environment variables
 load_dotenv()
@@ -130,14 +129,25 @@ async def extract_pan_json(text: str) -> dict:
         log.error(error_message)
         return {"error": error_message}
 
+def _cleanup_sync():
+    """Synchronous wrapper to attempt async cleanup."""
+    if exit_stack:
+        log.info("Attempting to close MCP connection via atexit...")
+        try:
+            asyncio.run(exit_stack.aclose())
+            log.info("MCP connection closed via atexit.")
+        except Exception as e:
+            log.error(f"Error during atexit cleanup: {e}", exc_info=True)
 
 
-# Initialize the agent when the module loads
+nest_asyncio.apply()
+
+log.info("Running agent initialization at module level using asyncio.run()...")
 try:
     asyncio.run(initialize())
-    log.info("Agent initialization completed.")
+    log.info("Module level asyncio.run(initialize()) completed.")
 except RuntimeError as e:
-    log.error(f"RuntimeError during initialization: {e}")
+    log.error(f"RuntimeError during module level initialization (likely nested loops): {e}", exc_info=True)
 except Exception as e:
-    log.error(f"Unexpected error during initialization: {e}")
+    log.error(f"Unexpected error during module level initialization: {e}", exc_info=True)
 
