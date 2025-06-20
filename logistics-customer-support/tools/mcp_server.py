@@ -42,7 +42,15 @@ available_tools = [
 app = Server("adk-tool-mcp-server")
 sse = SseServerTransport("/messages/")
 
-
+@app.list_tools()
+async def list_tools() -> list[mcp_types.Tool]:
+  """MCP handler to list available tools."""
+  # Convert the ADK tool's definition to MCP format
+  mcp_tool_upload_and_extract = adk_to_mcp_tool_type(tool_upload_and_extract)
+  mcp_tool_upload_file = adk_to_mcp_tool_type(tool_upload_file)
+  mcp_tool_extract_pan = adk_to_mcp_tool_type(tool_extract_pan)
+  print(f"MCP Server: Received list_tools request. \n MCP Server: Advertising tool: {mcp_tool_schema_event.name} and {mcp_tool_schema_post}")
+  return [mcp_tool_upload_and_extract,mcp_tool_upload_file,mcp_tool_extract_pan]
 
 @app.call_tool()
 async def call_tool(
