@@ -1,6 +1,5 @@
 # Environment variables - contain API keys
 .env
-.env copy
 *.env.*
 
 # Python bytecode and cache

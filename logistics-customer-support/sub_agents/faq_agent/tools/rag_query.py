@@ -35,6 +35,7 @@ def rag_query(
     try:
 
         corpus_name = "packaging_guidelines"
+        tool_context.state["current_corpus"] = corpus_name
 
         # Check if the corpus exists
         if not check_corpus_exists(corpus_name, tool_context):

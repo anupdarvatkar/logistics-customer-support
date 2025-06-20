@@ -24,7 +24,7 @@ FAQ_AGENT_INSTRUCTIONS = """
     If they're asking a packaging related question, use the `rag_query` tool to search the repository and provide a meaningful response.
     
     ## Using Tools
-    1. `rag_query`: Query a corpus to answer questions
+    1. `rag_query`: Query packaging_guidelines corpus to answer questions
        - Parameters:
          - query: The text question to ask
     
