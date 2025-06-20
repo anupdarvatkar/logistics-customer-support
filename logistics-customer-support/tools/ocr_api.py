@@ -7,11 +7,50 @@ import json
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import vision, storage
+import logging
+from google.adk import Agent
 
 # Service URL from environment variable
-OCR_AGENT_URL = os.environ.get("OCR_AGENT_URL", "https://ocr-agent-service-203057862897.us-central1.run.app:8081")
+MODEL = "gemini-2.0-flash"
+
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "logistics_customer_support_bucket")
 IMAGE_TEMP_FOLDER = "image_temp"
+
+PAN_EXTRACTION_INSTRUCTION = """
+You are an expert information extraction agent. Your task is to extract details from Indian PAN card text with maximum accuracy and completeness.
+
+Instructions:
+- Carefully analyze the input text, which may contain PAN card details in any order or format.
+- Extract and return a JSON object with these fields:
+  - pan_number: The 10-character alphanumeric Permanent Account Number (e.g., ABCDE1234F)
+  - name: The full name as printed on the PAN card
+  - father_name: The full father's name as printed on the PAN card
+  - dob: Date of birth in DD/MM/YYYY format
+  - gender: Gender as printed (MALE, FEMALE, or OTHER)
+
+Guidelines:
+- Do not infer or guess values; only extract what is present in the text.
+- If a field is missing or unclear, set its value to null.
+- Do not truncate names or other fields; return the full value as printed.
+- Ignore any unrelated text or noise.
+- Return only the JSON object, with no extra explanation or formatting.
+
+Example output:
+{
+  "pan_number": "ABCDE1234F",
+  "name": "RAVI KUMAR",
+  "father_name": "SURESH KUMAR",
+  "dob": "12/05/1985",
+  "gender": "MALE"
+}
+"""
+
+# Create the agent (do this once at module level)
+ocr_extract_agent = Agent(
+    model=MODEL,
+    name="pan_extractor_agent",
+    instruction=PAN_EXTRACTION_INSTRUCTION,
+)
 
 app = FastAPI()
 app.add_middleware(
@@ -148,37 +187,32 @@ def tool_upload_file(file_bytes: bytes, filename: str = None):
         print(error_message)
         return {"error": error_message}
 
-def tool_extract_pan(text: str):
+def tool_extract_pan(text: str) -> dict:
     """
-    Calls the remote OCR agent service to extract PAN card details.
-    
-    Args:
-        text (str): The text containing PAN card information to be processed.
-        
-    Returns:
-        dict: A dictionary containing the structured PAN card details.
-            If an error occurs, returns: {"error": error_message}
+    Extract PAN card details from text using the integrated LLM agent logic.
+    This replaces the need to call the FastAPI endpoint and resolves cyclic dependency.
     """
     if not text or not isinstance(text, str):
         return {"error": "No text provided or invalid text format."}
     
+    if len(text.strip()) < 10:
+        return {"error": "Text is too short to contain valid PAN card details."}
+    
     try:
-        # Call the remote OCR agent service
-        response = requests.post(
-            f"{OCR_AGENT_URL}/extract_pan",
-            json={"text": text},
-            headers={"Content-Type": "application/json"}
-        )
-        response.raise_for_status()
+        # Call the ocr_extract_agent to process the text
+        response = ocr_extract_agent.invoke(text)
         
-        print(f"Successfully called OCR agent service for PAN extraction")
-        return response.json()
+        # Validate the response
+        if not response:
+            return {"error": "No data returned from extraction agent."}
+            
+        logging.info("Successfully extracted PAN card details from text.")
+        return response
         
-    except requests.exceptions.RequestException as e:
-        error_message = f"Error calling OCR agent service: {str(e)}"
-        print(error_message)
+    except Exception as e:
+        error_message = f"Error extracting PAN card details: {str(e)}"
+        logging.error(error_message)
         return {"error": error_message}
-
 # --- FastAPI endpoints ---
 
 @app.post("/upload_and_extract/")
@@ -205,5 +239,5 @@ async def extract_pan(file: UploadFile = File(None), text: str = Form(None)):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8081))
+    port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
