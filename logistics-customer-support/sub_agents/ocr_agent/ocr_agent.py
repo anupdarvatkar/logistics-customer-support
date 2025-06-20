@@ -25,7 +25,7 @@ nest_asyncio.apply()
 
 # Load environment variables
 load_dotenv()
-MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "https://mcp-too-server-service-203057862897.us-central1.run.app:8080/sse")
+MCP_SERVER_URL = "https://mcp-too-server-service-203057862897.us-central1.run.app/sse"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
