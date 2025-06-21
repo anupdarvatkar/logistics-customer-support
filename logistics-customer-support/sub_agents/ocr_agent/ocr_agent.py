@@ -1,153 +1,149 @@
+import os
+import sys
 import asyncio
+import logging
 from contextlib import AsyncExitStack
 from dotenv import load_dotenv
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, SseServerParams
-import logging
-import os
-import nest_asyncio
-from fastapi import FastAPI, Body
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn
-from typing import Any, AsyncIterable, Dict, Optional
-from google.adk.agents import LoopAgent
-from google.adk.tools.tool_context import ToolContext
-from google.adk.artifacts import InMemoryArtifactService
-from google.adk.memory.in_memory_memory_service import InMemoryMemoryService
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
-from common.task_manager import AgentWithTaskManager
+from typing import Any, Dict
 
-
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-MCP_SERVER_URL = "https://mcp-too-server-service-203057862897.us-central1.run.app/sse"
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+MCP_SERVER_URL = "https://mcp-tool-server-service-203057862897.us-central1.run.app/sse"
 
-# --- Global variables ---
-root_agent: LlmAgent | None = None
-exit_stack: AsyncExitStack | None = None
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-
-class PanRequest(BaseModel):
-    text: str
+# --- Tool and Agent Initialization ---
 
 async def get_tools_async():
-    """
-    Asynchronously creates an MCP Toolset connected to the MCP server.
-    """
-
-
-    print("Attempting to connect to MCP Filesystem server...")
-    tools, exit_stack = await MCPToolset.from_server(
-      connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
-  )
-    
-    return tools, exit_stack
+    try:
+        logger.info(f"Connecting to MCP server at {MCP_SERVER_URL} to load tools...")
+        tools, exit_stack = await MCPToolset.from_server(
+            connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
+        )
+        logger.info(f"Loaded tools: {[tool.name for tool in tools]}")
+        return tools, exit_stack
+    except Exception as e:
+        logger.error(f"Failed to load tools from MCP server: {e}")
+        raise
 
 async def get_agent_async():
-    """
-    Asynchronously creates the MCP Toolset and the LlmAgent.
-    """
     tools, exit_stack = await get_tools_async()
+    try:
+        root_agent = LlmAgent(
+            model='gemini-2.0-flash',
+            name='logistics_ocr_agent',
+            instruction="""You are an expert information extraction agent. Your task is to extract details from Indian PAN card text with maximum accuracy and completeness.
 
-    root_agent = LlmAgent(
-        model='gemini-2.0-flash',
-        name='logistics_ocr_agent',
-        instruction="""
-        You are a specialized OCR and document processing agent for logistics customer support.
-        
-        You can perform the following tasks:
-        1. Upload files to Google Cloud Storage
-        2. Extract text from images using OCR
-        3. Extract structured PAN card details from text
-        
-        Guidelines:
-        - For PAN card extraction, you need text containing PAN card information
-        - The extraction will identify fields like PAN number, name, father's name, DOB, and gender
-        - Always verify the inputs are valid before calling tools
-        """,
-        tools=tools
-    )
-    log.info("LlmAgent created with MCP tools.")
+Instructions:
+- Carefully analyze the input text, which may contain PAN card details in any order or format.
+- Extract and return a JSON object with these fields:
+  - pan_number: The 10-character alphanumeric Permanent Account Number (e.g., ABCDE1234F)
+  - name: The full name as printed on the PAN card
+  - father_name: The full father's name as printed on the PAN card
+  - dob: Date of birth in DD/MM/YYYY format
+  - gender: Gender as printed (MALE, FEMALE, or OTHER)
 
-    # Return both the agent and the exit_stack needed for cleanup
-    return root_agent, exit_stack
+Guidelines:
+- Do not infer or guess values; only extract what is present in the text.
+- If a field is missing or unclear, set its value to null.
+- Do not truncate names or other fields; return the full value as printed.
+- Ignore any unrelated text or noise.
+- Return only the JSON object, with no extra explanation or formatting.
+
+Example output:
+{
+  "pan_number": "ABCDE1234F",
+  "name": "RAVI KUMAR",
+  "father_name": "SURESH KUMAR",
+  "dob": "12/05/1985",
+  "gender": "MALE"
+}
+""",
+            tools=tools
+        )
+        logger.info(f"Agent initialized: {root_agent.name}")
+        return root_agent, exit_stack
+    except Exception as e:
+        logger.error(f"Failed to initialize agent: {e}")
+        raise
 
 async def initialize():
-    """Initializes the global root_agent and exit_stack."""
-    global root_agent, exit_stack
-    if root_agent is None:
-        log.info("Initializing agent...")
+    try:
         root_agent, exit_stack = await get_agent_async()
-        if root_agent:
-            log.info("Agent initialized successfully.")
-        else:
-            log.error("Agent initialization failed.")
-    else:
-        log.info("Agent already initialized.")
+        app.state.root_agent = root_agent
+        app.state.exit_stack = exit_stack
+        logger.info("OCR Agent initialized successfully.")
+    except Exception as e:
+        logger.error(f"Unexpected error during module level initialization: {e}")
+        raise
 
-async def extract_pan_json(text: str) -> dict:
+# --- PAN Extraction Logic ---
+
+def extract_pan_json(agent: LlmAgent, text: str) -> Dict[str, Any]:
     """
-    Passes the input text to the agent to extract PAN card details.
+    Passes the input text to the LLM agent and returns the extracted PAN card details as a JSON object.
     """
-    global root_agent
-    
-    if not root_agent:
-        await initialize()
-    
     if not text or not isinstance(text, str):
         return {"error": "No text provided or invalid text format."}
-    
     if len(text.strip()) < 10:
         return {"error": "Text is too short to contain valid PAN card details."}
-    
     try:
-        # Construct a prompt for the agent to extract PAN details
-        prompt = f"""
-        Extract all PAN card details from the following text. Return only the structured data:
-        
-        {text}
-        """
-        
-        # Call the agent with the prompt
-        response = await root_agent.generate_content(prompt)
-        
-        # Process the response to extract the PAN details
-        # The agent will call the tool_extract_pan via MCP
-        result = response.text
-        
-        return result
+        response = agent.invoke(text)
+        if not response:
+            return {"error": "No data returned from extraction agent."}
+        return response
     except Exception as e:
         error_message = f"Error extracting PAN card details: {str(e)}"
-        log.error(error_message)
+        logger.error(error_message)
         return {"error": error_message}
 
-def _cleanup_sync():
-    """Synchronous wrapper to attempt async cleanup."""
-    if exit_stack:
-        log.info("Attempting to close MCP connection via atexit...")
-        try:
-            asyncio.run(exit_stack.aclose())
-            log.info("MCP connection closed via atexit.")
-        except Exception as e:
-            log.error(f"Error during atexit cleanup: {e}", exc_info=True)
+# --- FastAPI Endpoints ---
 
+class PanExtractRequest(BaseModel):
+    text: str
 
-nest_asyncio.apply()
+@app.post("/extract_pan")
+async def extract_pan(request: PanExtractRequest):
+    agent: LlmAgent = app.state.root_agent
+    try:
+        result = extract_pan_json(agent, request.text)
+        return result
+    except Exception as e:
+        logger.error(f"PAN extraction failed: {e}")
+        return {"error": str(e)}
 
-log.info("Running agent initialization at module level using asyncio.run()...")
-try:
-    asyncio.run(initialize())
-    log.info("Module level asyncio.run(initialize()) completed.")
-except RuntimeError as e:
-    log.error(f"RuntimeError during module level initialization (likely nested loops): {e}", exc_info=True)
-except Exception as e:
-    log.error(f"Unexpected error during module level initialization: {e}", exc_info=True)
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+# --- Main Entrypoint ---
+
+if __name__ == "__main__":
+    import uvicorn
+    import nest_asyncio
+    nest_asyncio.apply()
+    try:
+        asyncio.run(initialize())
+    except Exception as e:
+        logger.error(f"An error occurred during server startup: {e}")
+        sys.exit(1)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
