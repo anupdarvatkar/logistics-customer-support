@@ -2,7 +2,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from host_agent import HostAgent
+import host_agent
 from dotenv import load_dotenv
 from google.genai import types
 from google.adk.agents import BaseAgent
@@ -30,7 +30,7 @@ log.info(f"Remote Agent Addresses: {REMOTE_AGENT_ADDRESSES}")
 # --- Agent Initialization ---
 # Instantiate the HostAgent logic class
 # You might want to add a task_callback here if needed, similar to run_orchestrator.py
-host_agent_logic = HostAgent(remote_agent_addresses=REMOTE_AGENT_ADDRESSES)
+host_agent_logic = host_agent.HostAgent(remote_agent_addresses=REMOTE_AGENT_ADDRESSES)
 
 # Create the actual ADK Agent instance
 root_agent: BaseAgent = host_agent_logic.create_agent()
