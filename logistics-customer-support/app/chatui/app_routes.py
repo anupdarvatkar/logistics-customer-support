@@ -8,7 +8,7 @@ from flask import Blueprint, request, Response, stream_with_context, session
 from web_controller import start_shipment_booking, validate_id_with_agent
 
 # It's good practice to use a Blueprint for organizing routes
-chat_bp = Blueprint('chat', __name__)
+chat_bp = Blueprint('chat', __name__, template_folder='template')
 
 # --- API Routes for Chat Interaction ---
 
