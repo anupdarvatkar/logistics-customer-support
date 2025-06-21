@@ -1,11 +1,17 @@
-import asyncio
-from typing import Dict, Any, Optional
 import os
 import sys
+import logging
+from typing import Dict, Any, Optional
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Add project root to Python path
 # Add the project root to Python's path to help with imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(project_root)
+import logistics_ocr_agent
 
 from google.adk.agents import LoopAgent
 from google.adk.runners import Runner
@@ -14,8 +20,6 @@ from google.adk.sessions import InMemorySessionService
 from google.adk.memory.in_memory_memory_service import InMemoryMemoryService
 from common.task_manager import AgentWithTaskManager
 
-# Import the root_agent and extract_pan_json from ocr_agent
-from . import ocr_agent
 
 
 class OcrAgent(AgentWithTaskManager):
@@ -45,4 +49,4 @@ class OcrAgent(AgentWithTaskManager):
         Returns the pre-initialized root_agent from ocr_agent module.
         This agent already has MCP tools configured.
         """
-        return ocr_agent.root_agent
+        return logistics_ocr_agent.root_agent

@@ -8,6 +8,7 @@ WORKDIR /app
 COPY . .
 COPY ./a2a_common-0.1.0-py3-none-any.whl /app/a2a_common-0.1.0-py3-none-any.whl
 # Install any dependencies
+ENV PYTHONPATH=/app:$PYTHONPATH
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the content of the local directory to the working directory
