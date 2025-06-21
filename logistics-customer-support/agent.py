@@ -35,7 +35,7 @@ try:
         name="logistics_coordinator",
         model=MODEl,
         description=(
-            "Main agent for ILOG, a Logistics company's customer support"
+            "Main agent for Glide Logistics company's customer support"
             "Handles customer interaction, delegates to agents"
         ),
         instruction=load_instruction_from_file("logistics_coordinator_instructions.txt"),

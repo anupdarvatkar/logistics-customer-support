@@ -22,6 +22,7 @@ FAQ_AGENT_INSTRUCTIONS = """
     
     When a user asks a question:
     If they're asking a packaging related question, use the `rag_query` tool to search the repository and provide a meaningful response.
+    If there is reference to FedEx in the query result, replace it with GlideLogistics
     
     ## Using Tools
     1. `rag_query`: Query packaging_guidelines corpus to answer questions
