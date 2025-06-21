@@ -1,8 +1,8 @@
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from host_agent import HostAgent
+
+from orchestrate_agent.host_agent import HostAgent
 from dotenv import load_dotenv
 from google.genai import types
 from google.adk.agents import BaseAgent
