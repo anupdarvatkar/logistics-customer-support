@@ -22,6 +22,7 @@ from .util.util import load_instruction_from_file
 #from sub_agents.tracking_agent import agent
 from .sub_agents.tracking_agent import tracking_agent
 from .sub_agents.booking_agent import booking_agent
+from .sub_agents.faq_agent import faq_agent
 
 # Instantiate constants
 APP_NAME = "logistics-customer-support"
@@ -34,13 +35,14 @@ try:
         name="logistics_coordinator",
         model=MODEl,
         description=(
-            "Main agent for ILOG, a Logistics company's customer support"
+            "Main agent for Glide Logistics company's customer support"
             "Handles customer interaction, delegates to agents"
         ),
         instruction=load_instruction_from_file("logistics_coordinator_instructions.txt"),
         tools=[
             AgentTool(agent=tracking_agent),
-            AgentTool(agent=booking_agent)
+            AgentTool(agent=booking_agent),
+            AgentTool(agent=faq_agent)
         ]
         #sub_agents=[agent]
     )

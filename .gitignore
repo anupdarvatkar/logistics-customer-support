@@ -1,3 +1,4 @@
+
 .venv
 .\logistics-customer-support\.env
 # Environment variables - contain API keys
@@ -68,6 +69,7 @@ docker-compose.override.yml
 # Temporary files
 *.tmp
 *.bak
+
 *~
 logistics-customer-support/sub_agents/ocr_agent/__pycache__/__init__.cpython-313.pyc
 logistics-customer-support/sub_agents/ocr_agent/__pycache__/agent.cpython-313.pyc
@@ -79,3 +81,4 @@ logistics-customer-support/sub_agents/ocr_agent/__pycache__/__init__.cpython-313
 logistics-customer-support/sub_agents/ocr_agent/__pycache__/__init__.cpython-313.pyc
 logistics-customer-support/tools/__pycache__/mcp_server.cpython-313.pyc
 logistics-customer-support/tools/__pycache__/ocr_api.cpython-313.pyc
+
