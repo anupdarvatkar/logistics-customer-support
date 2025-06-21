@@ -160,93 +160,13 @@ async def handle_sse(request):
             streams[0], streams[1], app.create_initialization_options()
         )
 
-# Import additional Starlette components
-from starlette.responses import HTMLResponse, JSONResponse
-
-# Add these new routes to your Starlette app
 starlette_app = Starlette(
     debug=True,
     routes=[
         Route("/sse", endpoint=handle_sse),
         Mount("/messages/", app=sse.handle_post_message),
-        # New routes for tool listing
-        Route("/tools", endpoint=list_tools_html),
-        Route("/tools/json", endpoint=list_tools_json),
     ],
 )
-
-# Add these new endpoint functions
-async def list_tools_html(request):
-    """Display available tools in a browser-friendly HTML format."""
-    mcp_tools = await list_tools()
-    
-    tool_list_html = ""
-    for tool in mcp_tools:
-        params_html = ""
-        for param in tool.parameters:
-            params_html += f"""
-                <li>
-                    <strong>{param.name}</strong> ({param.type}) - 
-                    {param.description or "No description"}
-                    {" (Required)" if param.required else ""}
-                </li>
-            """
-        
-        tool_list_html += f"""
-            <div class="tool">
-                <h3>{tool.name}</h3>
-                <p>{tool.description or "No description"}</p>
-                <h4>Parameters:</h4>
-                <ul>{params_html or "<li>None</li>"}</ul>
-            </div>
-            <hr>
-        """
-    
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>MCP Server Tools</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            .tool {{ margin-bottom: 20px; }}
-            h1 {{ color: #333; }}
-            h3 {{ color: #0066cc; }}
-            hr {{ border: 0; height: 1px; background: #ddd; }}
-        </style>
-    </head>
-    <body>
-        <h1>Available MCP Tools</h1>
-        {tool_list_html or "<p>No tools available</p>"}
-    </body>
-    </html>
-    """
-    
-    return HTMLResponse(html_content)
-
-async def list_tools_json(request):
-    """Return available tools as JSON for programmatic access."""
-    mcp_tools = await list_tools()
-    
-    # Convert MCP tools to a simpler dictionary format
-    tools_data = []
-    for tool in mcp_tools:
-        tool_data = {
-            "name": tool.name,
-            "description": tool.description,
-            "parameters": [
-                {
-                    "name": param.name,
-                    "type": param.type,
-                    "description": param.description,
-                    "required": param.required
-                }
-                for param in tool.parameters
-            ]
-        }
-        tools_data.append(tool_data)
-    
-    return JSONResponse(tools_data)
 
 if __name__ == "__main__":
     logger.info(f"Launching MCP Server on {APP_HOST}:{APP_PORT} exposing ADK tools...")
