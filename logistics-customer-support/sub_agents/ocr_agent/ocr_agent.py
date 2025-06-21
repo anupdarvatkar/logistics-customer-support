@@ -33,18 +33,27 @@ app.add_middleware(
 
 async def get_tools_async():
     """
-    Asynchronously creates an MCP Toolset connected to the MCP server.
+    Get tools from MCP server.
+    Note: This function expects the MCP server to return proper ADK tool objects.
     """
-
-
-    print("Attempting to connect to MCP Filesystem server...")
-    tools, exit_stack = await MCPToolset.from_server(
-      connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
-  )
-    
-    return tools, exit_stack
+    try:
+        logger.info(f"Connecting to MCP server at {MCP_SERVER_URL} to load tools...")
+        
+        # IMPORTANT: Make sure any local tools you add are decorated with @tool
+        tools, exit_stack = await MCPToolset.from_server(
+            connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
+        )
+        
+        logger.info(f"Loaded tools: {[tool.name for tool in tools]}")
+        return tools, exit_stack
+    except Exception as e:
+        logger.error(f"Failed to load tools from MCP server: {e}")
+        raise
 
 async def get_agent_async():
+    """
+    Create and return the agent with tools from MCP server.
+    """
     tools, exit_stack = await get_tools_async()
     try:
         root_agent = LlmAgent(
@@ -77,7 +86,7 @@ Example output:
   "gender": "MALE"
 }
 """,
-            tools=tools
+            tools=tools  # These must be proper ADK tool objects, not plain functions
         )
         logger.info(f"Agent initialized: {root_agent.name}")
         return root_agent, exit_stack
@@ -86,6 +95,9 @@ Example output:
         raise
 
 async def initialize():
+    """
+    Initialize the application state with the agent and exit stack.
+    """
     try:
         root_agent, exit_stack = await get_agent_async()
         app.state.root_agent = root_agent
@@ -96,10 +108,11 @@ async def initialize():
         raise
 
 # --- PAN Extraction Logic ---
-
+# This is a utility function, NOT a tool. Don't decorate it with @tool
 def extract_pan_json(agent: LlmAgent, text: str) -> Dict[str, Any]:
     """
     Passes the input text to the LLM agent and returns the extracted PAN card details as a JSON object.
+    This is not a tool, just a helper function.
     """
     if not text or not isinstance(text, str):
         return {"error": "No text provided or invalid text format."}
@@ -122,6 +135,9 @@ class PanExtractRequest(BaseModel):
 
 @app.post("/extract_pan")
 async def extract_pan(request: PanExtractRequest):
+    """
+    API endpoint for PAN extraction.
+    """
     agent: LlmAgent = app.state.root_agent
     try:
         result = extract_pan_json(agent, request.text)
@@ -132,6 +148,9 @@ async def extract_pan(request: PanExtractRequest):
 
 @app.get("/health")
 async def health():
+    """
+    Health check endpoint.
+    """
     return {"status": "ok"}
 
 # --- Main Entrypoint ---
