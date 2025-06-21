@@ -15,7 +15,8 @@ from google.adk.memory.in_memory_memory_service import InMemoryMemoryService
 from common.task_manager import AgentWithTaskManager
 
 # Import the root_agent and extract_pan_json from ocr_agent
-from sub_agents.ocr_agent import ocr_agent
+from . import ocr_agent
+
 
 class OcrAgent(AgentWithTaskManager):
     """

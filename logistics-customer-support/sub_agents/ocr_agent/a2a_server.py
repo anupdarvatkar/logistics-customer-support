@@ -11,12 +11,15 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(project_root)
 
 
+
 from common.server import A2AServer
 from common.types import AgentCard, AgentCapabilities, AgentSkill
 from common.task_manager import AgentTaskManager
 
 # Import the OcrAgent from local agent_wrapper file
-from sub_agents.agent_wrapper import OcrAgent  # Direct import from same folder
+from agent_wrapper import OcrAgent
+
+  # Direct import from same folder
 
 # Configuration
 host = os.environ.get("A2A_HOST", "0.0.0.0")
