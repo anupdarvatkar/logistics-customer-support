@@ -33,29 +33,41 @@ load_dotenv()
 APP_HOST = os.environ.get("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.environ.get("APP_PORT", 8080))
 
-# --- Create wrapped versions of the tool functions ---
+# --- Create wrapped versions of the tool functions with string parameters ---
 
-def wrapped_upload_file(file_bytes: bytes) -> Dict:
+def wrapped_upload_file(file_bytes: str) -> Dict:
     """Upload a file and return its ID.
     
     Args:
-        file_bytes: The file content as bytes (base64 encoded in JSON)
+        file_bytes: The file content as a base64-encoded string
         
     Returns:
         Dict: Information about the uploaded file
     """
-    return tool_upload_file(file_bytes)
+    # Convert base64 string to bytes inside the wrapper
+    try:
+        binary_data = base64.b64decode(file_bytes)
+        return tool_upload_file(binary_data)
+    except Exception as e:
+        logger.error(f"Error decoding base64 in wrapped_upload_file: {e}")
+        return {"error": f"Failed to decode base64: {str(e)}"}
 
-def wrapped_upload_and_extract(file_bytes: bytes) -> Dict:
+def wrapped_upload_and_extract(file_bytes: str) -> Dict:
     """Upload a file and extract text from it.
     
     Args:
-        file_bytes: The file content as bytes (base64 encoded in JSON)
+        file_bytes: The file content as a base64-encoded string
         
     Returns:
         Dict: Extracted text and file information
     """
-    return tool_upload_and_extract(file_bytes)
+    # Convert base64 string to bytes inside the wrapper
+    try:
+        binary_data = base64.b64decode(file_bytes)
+        return tool_upload_and_extract(binary_data)
+    except Exception as e:
+        logger.error(f"Error decoding base64 in wrapped_upload_and_extract: {e}")
+        return {"error": f"Failed to decode base64: {str(e)}"}
 
 def wrapped_extract_pan(text: str) -> Dict:
     """Extract PAN card details from text.
@@ -110,7 +122,7 @@ async def list_tools() -> list[mcp_types.Tool]:
 async def call_tool(
     name: str, arguments: dict
 ) -> list[mcp_types.TextContent | mcp_types.ImageContent | mcp_types.EmbeddedResource]:
-    """MCP handler to execute a tool call with proper binary conversion."""
+    """MCP handler to execute a tool call."""
     logger.info(f"Received call_tool request for '{name}'")
 
     # Look up the tool by name in our dictionary
@@ -118,26 +130,9 @@ async def call_tool(
     
     if tool_to_call:
         try:
-            # Special handling for tools that expect binary data
-            processed_args = arguments.copy()
-            
-            # Convert base64 strings to bytes for tools that expect binary
-            if name in ["wrapped_upload_file", "wrapped_upload_and_extract"]:
-                if "file_bytes" in processed_args and isinstance(processed_args["file_bytes"], str):
-                    try:
-                        # Convert base64 string to bytes
-                        processed_args["file_bytes"] = base64.b64decode(processed_args["file_bytes"])
-                        logger.info(f"Converted base64 string to bytes for '{name}'")
-                    except Exception as e:
-                        logger.error(f"Failed to decode base64 for '{name}': {e}")
-                        return [mcp_types.TextContent(
-                            type="text", 
-                            text=json.dumps({"error": "Invalid base64 encoding for file_bytes"})
-                        )]
-            
-            # Execute the tool with processed arguments
+            # No need to convert base64 here - it's handled in the wrapper functions
             adk_response = await tool_to_call.run_async(
-                args=processed_args,
+                args=arguments,
                 tool_context=None,
             )
             logger.info(f"ADK tool '{name}' executed successfully")
