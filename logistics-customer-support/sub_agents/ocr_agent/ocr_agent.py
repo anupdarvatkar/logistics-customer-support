@@ -29,6 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- CRITICAL FIX: Add module-level root_agent variable ---
+root_agent = None
+exit_stack = None
+
 # --- Tool and Agent Initialization ---
 
 async def get_tools_async():
@@ -48,15 +52,17 @@ async def get_tools_async():
         return tools, exit_stack
     except Exception as e:
         logger.error(f"Failed to load tools from MCP server: {e}")
-        raise
+        # Create an empty exit stack to avoid None
+        return [], AsyncExitStack()
 
 async def get_agent_async():
     """
     Create and return the agent with tools from MCP server.
     """
-    tools, exit_stack = await get_tools_async()
     try:
-        root_agent = LlmAgent(
+        tools, exit_stack = await get_tools_async()
+        
+        agent = LlmAgent(
             model='gemini-2.0-flash',
             name='logistics_ocr_agent',
             instruction="""You are an expert information extraction agent. Your task is to extract details from Indian PAN card text with maximum accuracy and completeness.
@@ -86,18 +92,26 @@ Example output:
   "gender": "MALE"
 }
 """,
-            tools=tools  # These must be proper ADK tool objects, not plain functions
+            tools=tools  # Even if empty, this should work
         )
-        logger.info(f"Agent initialized: {root_agent.name}")
-        return root_agent, exit_stack
+        logger.info(f"Agent initialized: {agent.name}")
+        return agent, exit_stack
     except Exception as e:
         logger.error(f"Failed to initialize agent: {e}")
-        raise
+        # Create an agent without tools as fallback
+        fallback_agent = LlmAgent(
+            model='gemini-2.0-flash',
+            name='logistics_ocr_agent_fallback',
+            instruction="Extract PAN card details from text."
+        )
+        logger.info("Created fallback agent without tools")
+        return fallback_agent, AsyncExitStack()
 
 async def initialize():
     """
     Initialize the application state with the agent and exit stack.
     """
+    global root_agent, exit_stack
     try:
         root_agent, exit_stack = await get_agent_async()
         app.state.root_agent = root_agent
@@ -138,7 +152,7 @@ async def extract_pan(request: PanExtractRequest):
     """
     API endpoint for PAN extraction.
     """
-    agent: LlmAgent = app.state.root_agent
+    agent = root_agent or app.state.root_agent
     try:
         result = extract_pan_json(agent, request.text)
         return result
@@ -151,19 +165,34 @@ async def health():
     """
     Health check endpoint.
     """
-    return {"status": "ok"}
+    return {"status": "ok", "agent_ready": root_agent is not None}
+
+# --- CRITICAL FIX: Initialize the root_agent at module load time ---
+# This ensures root_agent is available for agent_wrapper.py
+try:
+    import nest_asyncio
+    nest_asyncio.apply()
+    asyncio.run(initialize())
+    logger.info(f"Module initialization complete. root_agent is {'available' if root_agent else 'unavailable'}")
+except Exception as e:
+    logger.error(f"Failed to initialize root_agent at module load time: {e}")
+    # Create a simple agent without tools as fallback
+    root_agent = LlmAgent(
+        model='gemini-2.0-flash',
+        name='logistics_ocr_agent_emergency_fallback',
+        instruction="Extract PAN card details from text."
+    )
+    logger.warning("Created emergency fallback agent due to initialization failure")
 
 # --- Main Entrypoint ---
 
 if __name__ == "__main__":
     import uvicorn
-    import nest_asyncio
-    nest_asyncio.apply()
     try:
-        asyncio.run(initialize())
+        # Agent is already initialized at module load time
+        port = int(os.environ.get("PORT", 8080))
+        uvicorn.run(app, host="0.0.0.0", port=port)
     except Exception as e:
         logger.error(f"An error occurred during server startup: {e}")
         sys.exit(1)
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
 
