@@ -1,10 +1,13 @@
 # adk_mcp_server.py
+
 import asyncio
 import json
 import uvicorn
 import os
 import sys
 import logging
+import base64
+from typing import Dict, Any
 
 # Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -16,9 +19,11 @@ from mcp.server.lowlevel import Server
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
-from ocr_api import tool_upload_and_extract, tool_upload_file, tool_extract_pan
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.mcp_tool.conversion_utils import adk_to_mcp_tool_type
+
+# Import the original tool functions
+from ocr_api import tool_upload_and_extract, tool_upload_file, tool_extract_pan
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -28,13 +33,47 @@ load_dotenv()
 APP_HOST = os.environ.get("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.environ.get("APP_PORT", 8080))
 
-# Create FunctionTool instances for each tool
-# Option 1: Wrap functions in FunctionTool objects
-upload_and_extract_tool = FunctionTool(tool_upload_and_extract)
-upload_file_tool = FunctionTool(tool_upload_file)
-extract_pan_tool = FunctionTool(tool_extract_pan)
+# --- Create wrapped versions of the tool functions ---
 
-# Use these wrapped tools instead of the raw functions
+def wrapped_upload_file(file_bytes: bytes) -> Dict:
+    """Upload a file and return its ID.
+    
+    Args:
+        file_bytes: The file content as bytes (base64 encoded in JSON)
+        
+    Returns:
+        Dict: Information about the uploaded file
+    """
+    return tool_upload_file(file_bytes)
+
+def wrapped_upload_and_extract(file_bytes: bytes) -> Dict:
+    """Upload a file and extract text from it.
+    
+    Args:
+        file_bytes: The file content as bytes (base64 encoded in JSON)
+        
+    Returns:
+        Dict: Extracted text and file information
+    """
+    return tool_upload_and_extract(file_bytes)
+
+def wrapped_extract_pan(text: str) -> Dict:
+    """Extract PAN card details from text.
+    
+    Args:
+        text: The text to extract PAN details from
+        
+    Returns:
+        Dict: Extracted PAN card details
+    """
+    return tool_extract_pan(text)
+
+# Create FunctionTool objects
+upload_file_tool = FunctionTool(wrapped_upload_file)
+upload_and_extract_tool = FunctionTool(wrapped_upload_and_extract)
+extract_pan_tool = FunctionTool(wrapped_extract_pan)
+
+# Use the wrapped tools
 tool_objects = [
     upload_and_extract_tool,
     upload_file_tool,
@@ -55,10 +94,8 @@ sse = SseServerTransport("/messages/")
 @app.list_tools()
 async def list_tools() -> list[mcp_types.Tool]:
     """MCP handler to list available tools."""
-    # Convert all ADK tools to MCP format
     mcp_tools = []
     
-    # FIXED: Use the wrapped tool objects instead of raw functions
     for tool in tool_objects:
         try:
             mcp_tool = adk_to_mcp_tool_type(tool)
@@ -73,17 +110,34 @@ async def list_tools() -> list[mcp_types.Tool]:
 async def call_tool(
     name: str, arguments: dict
 ) -> list[mcp_types.TextContent | mcp_types.ImageContent | mcp_types.EmbeddedResource]:
-    """MCP handler to execute a tool call."""
-    logger.info(f"Received call_tool request for '{name}' with args: {arguments}")
+    """MCP handler to execute a tool call with proper binary conversion."""
+    logger.info(f"Received call_tool request for '{name}'")
 
     # Look up the tool by name in our dictionary
-    # FIXED: Proper dictionary lookup
     tool_to_call = available_tools.get(name)
     
     if tool_to_call:
         try:
+            # Special handling for tools that expect binary data
+            processed_args = arguments.copy()
+            
+            # Convert base64 strings to bytes for tools that expect binary
+            if name in ["wrapped_upload_file", "wrapped_upload_and_extract"]:
+                if "file_bytes" in processed_args and isinstance(processed_args["file_bytes"], str):
+                    try:
+                        # Convert base64 string to bytes
+                        processed_args["file_bytes"] = base64.b64decode(processed_args["file_bytes"])
+                        logger.info(f"Converted base64 string to bytes for '{name}'")
+                    except Exception as e:
+                        logger.error(f"Failed to decode base64 for '{name}': {e}")
+                        return [mcp_types.TextContent(
+                            type="text", 
+                            text=json.dumps({"error": "Invalid base64 encoding for file_bytes"})
+                        )]
+            
+            # Execute the tool with processed arguments
             adk_response = await tool_to_call.run_async(
-                args=arguments,
+                args=processed_args,
                 tool_context=None,
             )
             logger.info(f"ADK tool '{name}' executed successfully")
@@ -103,8 +157,7 @@ async def call_tool(
 
 # --- MCP Remote Server ---
 async def handle_sse(request):
-    """Runs the MCP server over standard input/output."""
-    # Use the stdio_server context manager from the MCP library
+    """Runs the MCP server over SSE."""
     async with sse.connect_sse(
         request.scope, request.receive, request._send
     ) as streams:
@@ -123,7 +176,6 @@ starlette_app = Starlette(
 if __name__ == "__main__":
     logger.info(f"Launching MCP Server on {APP_HOST}:{APP_PORT} exposing ADK tools...")
     try:
-        # Fixed: Use proper asyncio.run pattern
         uvicorn.run(starlette_app, host=APP_HOST, port=APP_PORT)
     except KeyboardInterrupt:
         logger.info("MCP Server stopped by user")
