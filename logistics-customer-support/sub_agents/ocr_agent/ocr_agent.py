@@ -32,16 +32,17 @@ app.add_middleware(
 # --- Tool and Agent Initialization ---
 
 async def get_tools_async():
-    try:
-        logger.info(f"Connecting to MCP server at {MCP_SERVER_URL} to load tools...")
-        tools, exit_stack = await MCPToolset.from_server(
-            connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
-        )
-        logger.info(f"Loaded tools: {[tool.name for tool in tools]}")
-        return tools, exit_stack
-    except Exception as e:
-        logger.error(f"Failed to load tools from MCP server: {e}")
-        raise
+    """
+    Asynchronously creates an MCP Toolset connected to the MCP server.
+    """
+
+
+    print("Attempting to connect to MCP Filesystem server...")
+    tools, exit_stack = await MCPToolset.from_server(
+      connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
+  )
+    
+    return tools, exit_stack
 
 async def get_agent_async():
     tools, exit_stack = await get_tools_async()

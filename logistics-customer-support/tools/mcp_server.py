@@ -49,7 +49,7 @@ async def list_tools() -> list[mcp_types.Tool]:
   mcp_tool_upload_and_extract = adk_to_mcp_tool_type(tool_upload_and_extract)
   mcp_tool_upload_file = adk_to_mcp_tool_type(tool_upload_file)
   mcp_tool_extract_pan = adk_to_mcp_tool_type(tool_extract_pan)
-  print(f"MCP Server: Received list_tools request. \n MCP Server: Advertising tool: {mcp_tool_schema_event.name} and {mcp_tool_schema_post}")
+  print(f"MCP Server: Received list_tools request. \n MCP Server: Advertising tool: {mcp_tool_upload_and_extract.name} and {mcp_tool_upload_file.name} and {mcp_tool_extract_pan.name}")
   return [mcp_tool_upload_and_extract,mcp_tool_upload_file,mcp_tool_extract_pan]
 
 @app.call_tool()
