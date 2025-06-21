@@ -1,0 +1,14 @@
+#Check the right way to get the dependencies installed
+#pip install google-adk
+Flask==3.1.0
+google-adk==0.4.0
+python-dateutil==2.9.0.post0
+humanize==4.12.3
+nest_asyncio==1.6.0
+asyncclick==8.1.8.0
+google-adk[eval]==0.4.0
+build==1.2.2.post1
+streamlit
+requests
+pandas
+deprecated
