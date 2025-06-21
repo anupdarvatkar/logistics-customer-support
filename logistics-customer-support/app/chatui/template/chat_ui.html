@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shipment Booking Assistant</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Custom Styles -->
+    <style>
+      body { background-color: #f4f7f9; }
+      .main-content-area { max-width: 1200px; }
+      .chat-box { height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
+      .thoughts-box { height: 70vh; overflow-y: auto; font-family: monospace; font-size: 0.8rem; background-color: #212529; color: #00ff41; }
+      .message { padding: 0.5rem 1rem; border-radius: 1rem; max-width: 80%; }
+      .user-message { background-color: #0d6efd; color: white; align-self: flex-end; }
+      .agent-message { background-color: #e9ecef; color: #212529; align-self: flex-start; }
+      .thought-message { color: #6c757d; font-size: 0.8rem; margin-bottom: 0.5rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+      .card-footer { background-color: #fff; }
+    </style>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-md navbar-light fixed-top bg-white" style="border-bottom: 1px solid #dadce0;">
+      <div class="container-fluid main-content-area">
+        <a class="navbar-brand" href="/"><img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" style="height: 40px;"></a>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="{{ url_for('home') }}">Shipment Booking</a>
+            </li>
+          </ul>
+          <span class="navbar-text ms-auto">
+            <img src="{{ url_for('static', filename='alice.png') }}" alt="User Avatar" style="height: 40px; border-radius: 50%;">
+            Alice
+          </span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid main-content-area" style="padding-top: 80px;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <!-- Main Chat Interface -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header fw-bold">Booking Assistant</div>
+                    <div class="card-body chat-box" id="chat-box">
+                        <div class="message agent-message">
+                            Hello! Please provide the collection and destination addresses to begin.
+                        </div>
+                    </div>
+                    <div class="card-footer p-3" id="input-area">
+                        <!-- Input form will be dynamically rendered here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+            <!-- Agent Thoughts Panel -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header fw-bold">Agent Thoughts</div>
+                    <div class="card-body thoughts-box" id="thoughts-box">
+                        <div class="text-muted">Waiting for interaction...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatBox = document.getElementById('chat-box');
+        const thoughtsBox = document.getElementById('thoughts-box');
+        const inputArea = document.getElementById('input-area');
+
+        // --- TEMPLATES for dynamic forms ---
+        const initialBookingFormTemplate = `
+            <form id="booking-form">
+                <div class="mb-2">
+                    <input type="text" class="form-control" id="origin-input" placeholder="Enter collection address" required>
+                </div>
+                <div class="mb-2">
+                    <input type="text" class="form-control" id="destination-input" placeholder="Enter destination address" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Start Booking</button>
+            </form>
+        `;
+
+        const uploadFormTemplate = `
+            <form id="upload-form">
+                <p class="text-muted small">The agent requires your PAN card for verification. Please upload a clear image or PDF.</p>
+                <div class="input-group">
+                    <input type="file" class="form-control" id="file-input" accept=".png,.jpg,.jpeg,.pdf" required>
+                    <button class="btn btn-success" type="submit">Upload and Verify</button>
+                </div>
+            </form>
+        `;
+
+        // --- RENDER functions ---
+        function renderInitialForm() {
+            inputArea.innerHTML = initialBookingFormTemplate;
+            document.getElementById('booking-form').addEventListener('submit', handleStartBooking);
+        }
+
+        function renderUploadForm() {
+            inputArea.innerHTML = uploadFormTemplate;
+            document.getElementById('upload-form').addEventListener('submit', handleUploadId);
+        }
+
+        // --- UI update functions ---
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'agent-message');
+            messageDiv.textContent = text;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addThought(text) {
+            if (thoughtsBox.querySelector('.text-muted')) {
+                thoughtsBox.innerHTML = ''; // Clear initial message
+            }
+            const thoughtDiv = document.createElement('div');
+            thoughtDiv.classList.add('thought-message');
+            thoughtDiv.textContent = text;
+            thoughtsBox.appendChild(thoughtDiv);
+            thoughtsBox.scrollTop = thoughtsBox.scrollHeight;
+        }
+
+        // --- CORE LOGIC ---
+        async function handleStartBooking(event) {
+            event.preventDefault();
+            const origin = document.getElementById('origin-input').value;
+            const destination = document.getElementById('destination-input').value;
+
+            if (!origin || !destination) return;
+
+            addMessage(`Booking request: From "${origin}" to "${destination}"`, 'user');
+            inputArea.innerHTML = '<div class="text-center text-muted">Contacting agent...</div>';
+
+            try {
+                const response = await fetch('/api/chat/start_booking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ origin, destination })
+                });
+                await processStream(response.body.getReader());
+            } catch (error) {
+                addMessage('Failed to connect to the agent.', 'agent');
+                addThought(`Connection Error: ${error}`);
+                renderInitialForm(); // Show form again on error
+            }
+        }
+
+        async function handleUploadId(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+
+            if (!file) return;
+
+            addMessage(`Uploading ${file.name} for verification...`, 'user');
+            inputArea.innerHTML = '<div class="text-center text-muted">Uploading and verifying...</div>';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/chat/upload_id', {
+                    method: 'POST',
+                    body: formData
+                });
+                await processStream(response.body.getReader());
+            } catch (error) {
+                addMessage('File upload failed.', 'agent');
+                addThought(`Upload Error: ${error}`);
+                renderUploadForm(); // Show form again on error
+            }
+        }
+
+        // --- STREAM PROCESSING ---
+        async function processStream(reader) {
+            const decoder = new TextDecoder();
+            let agentMessageContainer = null;
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) {
+                    addThought("Stream finished.");
+                    break;
+                }
+                
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n\n');
+
+                for (const line of lines) {
+                    if (!line.startsWith('event:')) continue;
+
+                    const eventType = line.match(/event: (.*)/)[1];
+                    const dataStr = line.match(/data: (.*)/)[1];
+                    const data = JSON.parse(dataStr);
+
+                    switch (eventType) {
+                        case 'thought':
+                            addThought(data);
+                            break;
+                        case 'agent_message_chunk':
+                            if (!agentMessageContainer) {
+                                agentMessageContainer = document.createElement('div');
+                                agentMessageContainer.classList.add('message', 'agent-message');
+                                chatBox.appendChild(agentMessageContainer);
+                            }
+                            agentMessageContainer.textContent += data;
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                            break;
+                        case 'booking_started':
+                            addThought("Agent acknowledged booking. Awaiting next step.");
+                            renderUploadForm(); // The agent will ask for ID, so we render the form.
+                            break;
+                        case 'validation_complete':
+                            const resultText = `Verification Complete! Details: ${JSON.stringify(data, null, 2)}`;
+                            addMessage(resultText, 'agent');
+                            addThought("ID validation successful.");
+                            inputArea.innerHTML = '<div class="text-center text-success fw-bold">Booking process complete!</div>';
+                            break;
+                        case 'error':
+                            addMessage(`An error occurred: ${data.message || data}`, 'agent');
+                            addThought(`ERROR: ${JSON.stringify(data)}`);
+                            break;
+                        case 'stream_end':
+                            agentMessageContainer = null; // Reset for next message
+                            break;
+                    }
+                }
+            }
+        }
+
+        // --- INITIALIZE ---
+        renderInitialForm();
+    });
+    </script>
+  </body>
+</html>
