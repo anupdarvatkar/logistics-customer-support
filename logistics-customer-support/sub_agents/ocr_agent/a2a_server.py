@@ -19,8 +19,8 @@ from common.task_manager import AgentTaskManager
 from agent_wrapper import OcrAgent  # Direct import from same folder
 
 # Configuration
-host = os.environ.get("HOST", "0.0.0.0")
-port = int(os.environ.get("PORT", 8080))
+host = os.environ.get("A2A_HOST", "0.0.0.0")
+port = int(os.environ.get("A2A_PORT", 8080))
 PUBLIC_URL = os.environ.get("PUBLIC_URL", f"http://localhost:{port}")
 
 def main():
