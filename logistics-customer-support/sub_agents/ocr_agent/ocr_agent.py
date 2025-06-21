@@ -44,13 +44,18 @@ async def get_tools_async():
     """
 
 
-    print("Attempting to connect to MCP Filesystem server...")
-    tools, exit_stack = await MCPToolset.from_server(
-      connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
-  )
-    
-    return tools, exit_stack
+    log.info(f"Attempting to connect to MCP server at {MCP_SERVER_URL}...")
+    try:
+        tools, exit_stack = await MCPToolset.from_server(
+            connection_params=SseServerParams(url=MCP_SERVER_URL, headers={})
+        )
+        log.info("Successfully connected to MCP server.")
+        return tools, exit_stack
+    except Exception as e:
+        log.error(f"Failed to connect to MCP server: {e}", exc_info=True)
+        raise  # Re-raise the exception to be handled by the caller
 
+    
 async def get_agent_async():
     """
     Asynchronously creates the MCP Toolset and the LlmAgent.
