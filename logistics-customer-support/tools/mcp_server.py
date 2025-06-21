@@ -29,14 +29,19 @@ APP_HOST = os.environ.get("APP_HOST", "0.0.0.0")
 APP_PORT = int(os.environ.get("APP_PORT", 8080))
 
 # Create FunctionTool instances for each tool
+# Option 1: Wrap functions in FunctionTool objects
+upload_and_extract_tool = FunctionTool(tool_upload_and_extract)
+upload_file_tool = FunctionTool(tool_upload_file)
+extract_pan_tool = FunctionTool(tool_extract_pan)
+
+# Use these wrapped tools instead of the raw functions
 tool_objects = [
-    FunctionTool(tool_upload_and_extract),
-    FunctionTool(tool_upload_file),
-    FunctionTool(tool_extract_pan),
+    upload_and_extract_tool,
+    upload_file_tool,
+    extract_pan_tool
 ]
 
 # Create a dictionary for easier tool lookup by name
-# CRITICAL FIX: This allows proper tool lookup by name
 available_tools = {
     tool.name: tool for tool in tool_objects
 }
@@ -53,14 +58,14 @@ async def list_tools() -> list[mcp_types.Tool]:
     # Convert all ADK tools to MCP format
     mcp_tools = []
     
-    # FIXED: Convert each tool properly and add to the list
-    for func in [tool_upload_and_extract, tool_upload_file, tool_extract_pan]:
+    # FIXED: Use the wrapped tool objects instead of raw functions
+    for tool in tool_objects:
         try:
-            mcp_tool = adk_to_mcp_tool_type(func)
+            mcp_tool = adk_to_mcp_tool_type(tool)
             mcp_tools.append(mcp_tool)
             logger.info(f"Advertising tool: {mcp_tool.name}")
         except Exception as e:
-            logger.error(f"Failed to convert tool {func.__name__}: {e}")
+            logger.error(f"Failed to convert tool {tool.name}: {e}")
     
     return mcp_tools
 

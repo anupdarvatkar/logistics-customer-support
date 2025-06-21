@@ -20,4 +20,4 @@ ENV GCS_BUCKET_NAME="logistics_customer_support_bucket"
 
 EXPOSE 8080
 
-CMD ["python", "mcp_server.py"]
+CMD ["python", "-m", "mcp_server"]
