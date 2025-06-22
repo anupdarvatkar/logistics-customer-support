@@ -8,6 +8,8 @@ import sys
 import logging
 import base64
 from typing import Dict, Any
+from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
 
 # Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -166,7 +168,13 @@ ocr_api_app = FastAPI()
 @ocr_api_app.post("/upload_and_extract/")
 async def upload_and_extract(file: UploadFile = File(...)):
     file_bytes = await file.read()
-    return tool_upload_and_extract(file_bytes, file.filename)
+    upload_result =  tool_upload_and_extract(file_bytes, file.filename)
+    if "error" not in upload_result and "ocr_result" in upload_result:
+        pan_result = tool_extract_pan(upload_result["ocr_result"].get("full_text", ""))
+        logging.info(f"Upload result: {pan_result}")  # Add
+        upload_result["pan_details"] = pan_result
+    logging.info(f"Returning OCR and PAN extraction response for {file.filename}")
+    return upload_result
 
 
 starlette_app = Starlette(

@@ -1,6 +1,6 @@
 #Check the right way to get the dependencies installed
 #pip install google-adk
-google-cloud-aiplatform[adk,agent_engines]
+google-cloud-aiplatform[adk,agent_engines,reasoningengine]
 Flask
 mcp[cli]
 google-adk

@@ -232,7 +232,17 @@ async def upload_and_extract(file: UploadFile = File(...)):
     logging.info(f"Received file upload: {file.filename}")
     file_bytes = await file.read()
     logging.info(f"File size: {len(file_bytes)} bytes, content_type: {file.content_type}")
-    result = tool_upload_and_extract(file_bytes, file.filename)
+    
+    upload_result = tool_upload_and_extract(file_bytes, file.filename)
+    logging.info(f"Upload result: {upload_result}")  # Add
+    if "error" not in upload_result and "ocr_result" in upload_result:
+        pan_result = tool_extract_pan(upload_result["ocr_result"].get("full_text", ""))
+        logging.info(f"Upload result: {pan_result}")  # Add
+        upload_result["pan_details"] = pan_result
+    logging.info(f"Returning OCR and PAN extraction response for {file.filename}")
+    return upload_result
+
+    
     logging.info(f"Returning OCR extraction response for {file.filename}")
     return result
 
