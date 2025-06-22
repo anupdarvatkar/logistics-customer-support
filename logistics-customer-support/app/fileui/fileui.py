@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
 
-API_URL = "https://ocr-agent-service-203057862897.us-central1.run.app/upload_and_extract/"
-
+TOOLS_API_URL = "https://mcp-tool-server-service-203057862897.us-central1.run.app/upload_and_extract/"
+OCR_AGENT_API_URL = "https://ocr-agent-service-203057862897.us-central1.run.app/extract_pan/"
 st.title("ID Card OCR Uploader")
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
@@ -16,7 +16,7 @@ if uploaded_file is not None:
             else:
                 files = {"file": (uploaded_file.name, file_bytes, uploaded_file.type)}
                 try:
-                    response = requests.post(API_URL, files=files)
+                    response = requests.post(TOOLS_API_URL, files=files)
                     if response.ok:
                         data = response.json()
                         st.success("Extraction successful!")
