@@ -69,13 +69,14 @@ BOOKING_AGENT_INSTRUCTIONS="""
         If any of the information is missing or incorrect, you must ask the user to provide the correct information.
 
         Do not proceed untill all the information is correct and complete
-        Once all the information is gathered and validated, you must always ask for explicit confirmation from the user for every single booking attempt.
-        This confirmation is a mandatory step and must be performed every time, regardless of Previous interactions. Do NOT skip this step. 
+        Once all the information is gathered and validated, you must always ask for explicit confirmation from the user for every new booking request.
+        This confirmation is a mandatory step.
 
         Tools:
         - booking_tool - Use this tool to create a new booking in the system
 
-        Format the response from the tool  in a user friendly manner and share with the user.       
+        Format the response from the tool  in a user friendly manner and share with the user. 
+              
     """
 
 try:

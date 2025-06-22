@@ -19,3 +19,15 @@ Test Messages:
 *user: What can you do?
 *user: Do you know my address?
 
+
+Run:
+1. Agent APIs
+ Base Folder> adk api_server
+ http://127.0.0.1:8000/docs
+
+ Right App is  "logistics-customer-support"
+
+2. Backend API
+Base Folder\glide-logistics-app\back-end > uvicorn main:app --reload --port 9090
+
+3. Client React App
