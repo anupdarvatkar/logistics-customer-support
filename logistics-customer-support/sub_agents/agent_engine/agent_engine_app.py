@@ -84,8 +84,8 @@ def deploy_agent_engine_app(
     project: str,
     location: str,
     agent_name: str | None = None,
-    requirements_file: str = "./agent_engine/requirements.txt",
-    extra_packages: list[str] = ["./agent_engine","./orchestrate_agent"],
+    requirements_file: str = "requirements.txt",
+    extra_packages: list[str] = ["./agent_engine","./orchestrate_agent","a2a_common-0.1.0-py3-none-any.whl"],
     env_vars: dict[str, str] | None = None,
 ) -> agent_engines.AgentEngine:
     """Deploy the agent engine aEngine backing LRO:pp to Vertex AI."""
@@ -201,13 +201,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--requirements-file",
-        default="./agent_engine/requirements.txt",
+        default="./requirements.txt",
         help="Path to requirements.txt file",
     )
     parser.add_argument(
         "--extra-packages",
         nargs="+",
-        default=["./agent_engine","./orchestrate_agent"],
+        default=["./agent_engine","./orchestrate_agent","./a2a_common-0.1.0-py3-none-any.whl"],
         help="Additional packages to include",
     )
     parser.add_argument(
