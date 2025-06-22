@@ -7,7 +7,6 @@ def booking_tool(collection_address: str,
                  delivery_address: str, 
                  package_description: str,
                  package_weight:float,
-                 product: str,
                  service_level: str,
                  contact_email_address: str
                  ) -> dict:
@@ -18,7 +17,6 @@ def booking_tool(collection_address: str,
             delivery_address: Address to where the package neeeds to be delivered
             packagae_description: Brief description of the package
             package_weight: Weight of the package in kgs
-            product: Choice between "DOCUMENT" and "PACKAGE"
             service_level: Choice between "ECONOMY" and "EXPRESS"
             contact_email_address: Valid Email address
         Returns:
@@ -29,14 +27,13 @@ def booking_tool(collection_address: str,
             delivery_address='Rimsky-Korssakovweg 9, 1323 LP Almere',
             package_description='Application documents', 
             package_weight='1',
-            product='DOCUMENT',
             service_level='EXPRESS',
             contact_email_address='contact@gmail.com')
             {'status': 'success', 'booking_id':'10155'}
     """    
 
     print(f"Booking Details: \n collection_address: {collection_address} \n delivery_address: {delivery_address} \n  package_description:  {package_description} \n package_weight: {package_weight} \n" +
-            f"product: {product} \n service_level: {service_level} \n contact_email_address: {contact_email_address}")
+            f"service_level: {service_level} \n contact_email_address: {contact_email_address}")
     
     #Call the API to get the Booking Created
     booking_id = generate_booking_id()
@@ -62,7 +59,6 @@ BOOKING_AGENT_INSTRUCTIONS="""
         - delivery_address - Address to which the package needs to be delivered
         - package_description - Brief description of the package
         - package_weight - Weight of the package in kg. Package weight cannot be greater than 45 kgs
-        - product - Selection between "DOCUMENT" and "PACKAGE"
         - service_level - Selection between "ECONOMY" and "EXPRESS"
         - contact_email_address - Valid email address 
 

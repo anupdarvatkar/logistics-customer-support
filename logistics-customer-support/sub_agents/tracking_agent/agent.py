@@ -16,7 +16,7 @@ def tracking_tool(tracking_number: str) -> dict:
     """
 
     mock_tracking_db = {
-        "123456789" : {"status": "delivered", "delivery_date":"11-June-2025"},
+        "123456789" : {"status": "delivered", "delivery_date":"11-June-2025", "delivery_note":"Package left with the neighbour. Mr. Jesper signed for the same."},
         "987654321" : {"status": "delivered", "delivery_date":"12-June-2025"},
         "123459876" : {"status": "depart_hub", "hub_depart_date":"09-June-2025"},
     }
