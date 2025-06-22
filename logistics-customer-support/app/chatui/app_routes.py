@@ -5,7 +5,7 @@ import traceback
 from flask import Blueprint, request, Response, stream_with_context, session
 
 # Import the controller functions that interact with the remote Agent Engine
-from web_controller import start_shipment_booking, validate_id_with_agent
+from web_controller import stream_booking_request, stream_id_verification
 
 # It's good practice to use a Blueprint for organizing routes
 chat_bp = Blueprint('chat', __name__, template_folder='template')
@@ -35,7 +35,7 @@ def handle_start_booking():
         logging.info(f"--- SSE: Starting booking stream for user '{user_id}' ---")
         try:
             # Call the controller function which yields events
-            for event in start_shipment_booking(origin, destination, user_id):
+            for event in stream_booking_request(origin, destination, user_id):
                 event_type = event.get("type", "thought")
                 data_payload = json.dumps(event.get("data"))
                 sse_message = f"event: {event_type}\ndata: {data_payload}\n\n"
@@ -86,7 +86,7 @@ def handle_id_upload():
         logging.info(f"--- SSE: Starting ID validation stream for user '{user_id}' ---")
         try:
             # Call the controller function which yields events
-            for event in validate_id_with_agent(file_data_for_agent, user_id):
+            for event in stream_id_verification(file_data_for_agent, user_id):
                 event_type = event.get("type", "thought")
                 data_payload = json.dumps(event.get("data"))
                 sse_message = f"event: {event_type}\ndata: {data_payload}\n\n"
