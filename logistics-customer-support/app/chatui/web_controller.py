@@ -13,8 +13,16 @@ LOCATION = os.environ.get("AGENT_LOCATION", "us-central1")
 AGENT_ENGINE_ID = os.environ.get("ORCHESTRATE_AGENT_ID")
 
 try:
-    agent_engine = agent_engines.get_agent_engine(AGENT_ENGINE_ID)
-    logging.info(f"Connected to Agent Engine: {AGENT_ENGINE_ID}")
+    agent_engine = None
+    for engine in agent_engines.list():
+        # You may need to match on 'resource_name' or 'display_name'
+        if getattr(engine, "resource_name", None) == AGENT_ENGINE_ID:
+            agent_engine = engine
+            break
+    if agent_engine:
+        logging.info(f"Connected to Agent Engine: {AGENT_ENGINE_ID}")
+    else:
+        logging.error(f"Agent Engine with resource_name '{AGENT_ENGINE_ID}' not found.")
 except Exception as e:
     logging.error(f"Failed to connect to Agent Engine: {e}")
     agent_engine = None
