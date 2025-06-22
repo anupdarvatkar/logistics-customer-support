@@ -160,11 +160,21 @@ async def handle_sse(request):
             streams[0], streams[1], app.create_initialization_options()
         )
 
+# Create FastAPI app for OCR endpoint
+ocr_api_app = FastAPI()
+
+@ocr_api_app.post("/upload_and_extract/")
+async def upload_and_extract(file: UploadFile = File(...)):
+    file_bytes = await file.read()
+    return tool_upload_and_extract(file_bytes, file.filename)
+
+
 starlette_app = Starlette(
     debug=True,
     routes=[
         Route("/sse", endpoint=handle_sse),
         Mount("/messages/", app=sse.handle_post_message),
+        Mount("/", app=ocr_api_app),  # Mounts FastAPI app at root
     ],
 )
 
